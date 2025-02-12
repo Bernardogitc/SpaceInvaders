@@ -12,9 +12,21 @@
 #define LARGURA_BALA 10
 #define ALTURA_BALA 15
 #define BORDAS 10
-#define CHANCE_DE_TIRO 40  // 40% de chance de atirar]
+#define CHANCE_DE_TIRO 15  // 15% de chance de atirar
 #define TEMPO_MIN_TIRO 2
 #define TEMPO_MAX_TIRO 5
+#define MAX_NOME 10
+
+#define B_LARGURA 6
+#define B_ALTURA 4
+#define TAMANHO_BLOCO 10
+#define NUM_BARREIRAS 4
+
+typedef struct {
+    Rectangle pos;
+    int blocos[B_ALTURA][B_LARGURA];
+} Barreira;
+
 
 typedef struct Bala{
     Rectangle pos;
@@ -61,7 +73,8 @@ typedef struct Jogo{
     Assets assets;
     int alturaJanela;
     int larguraJanela;
-    int tempoAnimação;
+    int tempoAnimacao;
+    Barreira barreiras[NUM_BARREIRAS];
 } Jogo;
 
 void IniciaJogo(Jogo *j);
@@ -84,12 +97,13 @@ void DescarregaImagens(Jogo *j);
 void AtualizaJogo(Jogo *j);
 void AtirarBalasHeroi(Jogo *j);
 int TodasAsNavesMorreram(Jogo *j);
+void InicializarBarreiras(Barreira barreiras[NUM_BARREIRAS], Heroi *heroi, Jogo *jogo);
+void DesenharBarreiras(Barreira barreiras[NUM_BARREIRAS]);
 
-int main(){
+int main() {
     InitAudioDevice();
 
     Jogo jogo;
-
     jogo.alturaJanela = ALTURA_JANELA;
     jogo.larguraJanela = LARGURA_JANELA;
     const char *win = "Você ganhou";
@@ -99,74 +113,170 @@ int main(){
     SetTargetFPS(60);
 
     Texture2D logo = LoadTexture("assets/logo.png");
+    int opcaoSelecionada = 0;
+    char nomeJogador[MAX_NOME] = "";
+    int digitandoNome = 0;
     bool JogoIniciado = false;
+    bool jogoFinalizado = false; 
 
-    while(!JogoIniciado && !WindowShouldClose()){
-        BeginDrawing();
-        ClearBackground(BLACK);
-        DrawTexture(logo, (LARGURA_JANELA - logo.width)/2, 150, WHITE);
-        DrawText("1. Jogar", (LARGURA_JANELA - MeasureText("1. Jogar", 20)) / 2, 400, 20, WHITE);
-        DrawText("2. Sair", (LARGURA_JANELA - MeasureText("2. Sair", 20)) / 2, 450, 20, WHITE);
-        EndDrawing();
-        if (IsKeyPressed(KEY_ONE)) {
-            JogoIniciado = true; 
-        } else if (IsKeyPressed(KEY_TWO)) {
-            CloseWindow(); 
-            return 0;
-        }
-    }
+    while (!WindowShouldClose()) {
+
+        if (!JogoIniciado && !jogoFinalizado) {
+
+            BeginDrawing();
+            ClearBackground(BLACK);
+
+            DrawTexture(logo, (LARGURA_JANELA - logo.width) / 2, 150, WHITE);
+
+            Color corJogar = (opcaoSelecionada == 0) ? YELLOW : WHITE;
+            Color corNome = (opcaoSelecionada == 1) ? YELLOW : WHITE;
+            Color corSair = (opcaoSelecionada == 2) ? YELLOW : WHITE;
 
 
-    IniciaJogo(&jogo);
-    CarregaImagens(&jogo);
-    Music musicaJogo = LoadMusicStream("assets/musica.mp3");
-    PlayMusicStream(musicaJogo);
+            DrawText("1. Jogar", (LARGURA_JANELA - MeasureText("1. Jogar", 20)) / 2, 400, 20, corJogar);
+            DrawText("2. Nome: ", (LARGURA_JANELA - MeasureText("2. Nome", 20)) / 2, 450, 20, corNome);
+            DrawText(nomeJogador, (LARGURA_JANELA - MeasureText(nomeJogador, 20)) / 2 + 80, 450, 20, WHITE); 
+            DrawText("3. Sair", (LARGURA_JANELA - MeasureText("3. Sair", 20)) / 2, 500, 20, corSair);
 
-    while(!WindowShouldClose()){
-        UpdateMusicStream(musicaJogo);
-        AtualizaFrameDesenho(&jogo);
+            EndDrawing();
 
-        if (TodasAsNavesMorreram(&jogo)) {
-            while (!WindowShouldClose()) {
-                BeginDrawing();
-                ClearBackground(BLACK);
-                Vector2 tamanhoTexto = MeasureTextEx(GetFontDefault(), "Você venceu!", 20, 1);
-                DrawText("Você venceu!", (LARGURA_JANELA - tamanhoTexto.x) / 2, (ALTURA_JANELA - tamanhoTexto.y) / 2, 20, GREEN);
-                DrawText("Pressione ENTER para voltar ao menu", 200, 300, 20, WHITE);
-                EndDrawing();
+
+            if (digitandoNome) {
+
+                int key = GetCharPressed();
+                while (key > 0) {
+                    int len = strlen(nomeJogador);
+                    if (len < MAX_NOME - 1) {
+                        nomeJogador[len] = (char)key;
+                        nomeJogador[len + 1] = '\0';
+                    }
+                    key = GetCharPressed();
+                }
+                if (IsKeyPressed(KEY_BACKSPACE) && strlen(nomeJogador) > 0) {
+                    nomeJogador[strlen(nomeJogador) - 1] = '\0';
+                }
+                if (IsKeyPressed(KEY_ENTER)) {
+                    digitandoNome = 0; 
+                }
+            } else {
+                // Navegação no menu
+                if (IsKeyPressed(KEY_DOWN)) {
+                    opcaoSelecionada = (opcaoSelecionada + 1) % 3;
+                } else if (IsKeyPressed(KEY_UP)) {
+                    opcaoSelecionada = (opcaoSelecionada - 1 + 3) % 3; 
+                }
 
                 if (IsKeyPressed(KEY_ENTER)) {
-                    main();  
-                    return 0;
+                    if (opcaoSelecionada == 0) {
+
+                        JogoIniciado = true;
+                    } else if (opcaoSelecionada == 1) {
+
+                        digitandoNome = 1;
+                    } else if (opcaoSelecionada == 2) {
+
+                        CloseWindow();
+                        return 0;
+                    }
                 }
             }
         }
 
-        if(jogo.heroi.vida==0){
-            while(!WindowShouldClose()){
-                BeginDrawing();
-                ClearBackground(BLACK);
-                Vector2 tamanhoTexto = MeasureTextEx(GetFontDefault(), win, 20, 1);
-                DrawText(lose, (LARGURA_JANELA - tamanhoTexto.x) / 2, (ALTURA_JANELA - tamanhoTexto.y) / 2, 20, RED);
-                DrawText("Pressione ENTER para voltar ao menu", 200, 300, 20, WHITE);
-                EndDrawing();
+        if (JogoIniciado && !jogoFinalizado) {
 
-                if(IsKeyPressed(KEY_ENTER)){
-                    main();
-                    return 0;
+            IniciaJogo(&jogo);
+            CarregaImagens(&jogo);
+            InicializarBarreiras(jogo.barreiras, &jogo.heroi, &jogo);
+
+            Music musicaJogo = LoadMusicStream("assets/musica.mp3");
+            PlayMusicStream(musicaJogo);
+
+            while (!WindowShouldClose() && !jogoFinalizado) {
+                UpdateMusicStream(musicaJogo);
+                AtualizaFrameDesenho(&jogo);
+
+                for (int i = 0; i < NUM_BARREIRAS; i++) {
+                    for (int y = 0; y < B_ALTURA; y++) {
+                        for (int x = 0; x < B_LARGURA; x++) {
+                            if (jogo.barreiras[i].blocos[y][x]) {
+                                DrawRectangle(jogo.barreiras[i].pos.x + x * TAMANHO_BLOCO,
+                                               jogo.barreiras[i].pos.y + y * TAMANHO_BLOCO,
+                                               TAMANHO_BLOCO, TAMANHO_BLOCO, GREEN);
+                            }
+                        }
+                    }
+                }
+
+                for (int i = 0; i < 10; i++) {  
+                    if (jogo.naves[i].bala.ativa) {  
+                        for (int j = 0; j < NUM_BARREIRAS; j++) {
+                            for (int y = 0; y < B_ALTURA; y++) {
+                                for (int x = 0; x < B_LARGURA; x++) {
+                                    if (jogo.barreiras[j].blocos[y][x]) {
+                                        Rectangle bloco = { 
+                                            jogo.barreiras[j].pos.x + x * TAMANHO_BLOCO, 
+                                            jogo.barreiras[j].pos.y + y * TAMANHO_BLOCO, 
+                                            TAMANHO_BLOCO, TAMANHO_BLOCO 
+                                        };
+                                        if (CheckCollisionRecs(bloco, jogo.naves[i].bala.pos)) {
+                                            jogo.barreiras[j].blocos[y][x] = 0; 
+                                            jogo.naves[i].bala.ativa = 0;  
+                                            PlaySound(jogo.naves[i].bala.tiro);  
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }        
+
+                if (TodasAsNavesMorreram(&jogo)) {
+                    while (!WindowShouldClose()) {
+                        BeginDrawing();
+                        ClearBackground(BLACK);
+                        Vector2 tamanhoTexto = MeasureTextEx(GetFontDefault(), "Você venceu!", 20, 1);
+                        DrawText("Você venceu!", (LARGURA_JANELA - tamanhoTexto.x) / 2, (ALTURA_JANELA - tamanhoTexto.y) / 2, 20, GREEN);
+                        DrawText("Pressione ENTER para voltar ao menu", 200, 300, 20, WHITE);
+                        EndDrawing();
+
+                        if (IsKeyPressed(KEY_ENTER)) {
+                            jogoFinalizado = true; 
+                            break; 
+                        }
+                    }
+                }
+
+                if (jogo.heroi.vida == 0) {
+                    while (!WindowShouldClose()) {
+                        BeginDrawing();
+                        ClearBackground(BLACK);
+                        Vector2 tamanhoTexto = MeasureTextEx(GetFontDefault(), win, 20, 1);
+                        DrawText(lose, (LARGURA_JANELA - tamanhoTexto.x) / 2, (ALTURA_JANELA - tamanhoTexto.y) / 2, 20, RED);
+                        DrawText("Pressione ENTER para voltar ao menu", 200, 300, 20, WHITE);
+                        EndDrawing();
+
+                        if (IsKeyPressed(KEY_ENTER)) {
+                            jogoFinalizado = true;
+                            break;  
+                        }
+                    }
                 }
             }
+        }
+
+        if (jogoFinalizado) {
+            JogoIniciado = false;
+            jogoFinalizado = false; 
         }
     }
-    UnloadMusicStream(musicaJogo);
-    DescarregaImagens(&jogo);
+
     CloseWindow();
     return 0;
 }
 
-void IniciaJogo(Jogo *j){
 
-    j->tempoAnimação = GetTime();
+void IniciaJogo(Jogo *j){
+    j->tempoAnimacao = GetTime();
 
     j->heroi.bala.ativa = 0;
     j->heroi.bala.tempo = GetTime();
@@ -189,10 +299,23 @@ void IniciaJogo(Jogo *j){
         j->naves[i].bala.tiro = LoadSound("assets/shoot.wav");
     }
 
-    j->bordas[0].pos = (Rectangle){0, 0, LARGURA_JANELA, 10}; //Borda de cima
-    j->bordas[1].pos = (Rectangle){0, ALTURA_JANELA-10, LARGURA_JANELA, 10};//Borda de baixo
-    j->bordas[2].pos = (Rectangle){0, 0, 10, ALTURA_JANELA};//Borda esquerda
-    j->bordas[3].pos = (Rectangle){LARGURA_JANELA-10, 0, 10, ALTURA_JANELA};//Borda direita
+    j->bordas[0].pos = (Rectangle){0, 0, LARGURA_JANELA, 10}; 
+    j->bordas[1].pos = (Rectangle){0, ALTURA_JANELA-10, LARGURA_JANELA, 10}; 
+    j->bordas[2].pos = (Rectangle){0, 0, 10, ALTURA_JANELA}; 
+    j->bordas[3].pos = (Rectangle){LARGURA_JANELA-10, 0, 10, ALTURA_JANELA}; 
+
+    for (int i = 0; i < NUM_BARREIRAS; i++) {
+        j->barreiras[i].pos.x = 100 + i * 150;
+        j->barreiras[i].pos.y = ALTURA_JANELA - 150;
+        j->barreiras[i].pos.width = B_LARGURA * TAMANHO_BLOCO;
+        j->barreiras[i].pos.height = B_ALTURA * TAMANHO_BLOCO;
+
+        for (int y = 0; y < B_ALTURA; y++) {
+            for (int x = 0; x < B_LARGURA; x++) {
+                j->barreiras[i].blocos[y][x] = 1;
+            }
+        }
+    }
 }
 
 void IniciaNaves(Jogo *j) {
@@ -206,6 +329,42 @@ void IniciaNaves(Jogo *j) {
         j->naves[i].pos = (Rectangle) {i * 40, 15, STD_SIZE_X, STD_SIZE_Y};
         j->naves[i].color = RED;
         j->naves[i].bala.tiro = LoadSound("assets/shoot.wav");
+    }
+}
+
+void InicializarBarreiras(Barreira barreiras[NUM_BARREIRAS], Heroi *heroi, Jogo *jogo) {
+
+    float distanciaBarreiras = 100.0f;
+
+    float espacoEntreBarreiras = 100.0f;
+
+    for (int b = 0; b < NUM_BARREIRAS; b++) {
+        for (int i = 0; i < B_ALTURA; i++) {
+            for (int j = 0; j < B_LARGURA; j++) {
+                barreiras[b].blocos[i][j] = 1; 
+            }
+        }
+
+        barreiras[b].pos = (Rectangle){ 
+            (jogo->larguraJanela - (NUM_BARREIRAS * B_LARGURA * TAMANHO_BLOCO + (NUM_BARREIRAS - 1) * espacoEntreBarreiras)) / 2 + b * (B_LARGURA * TAMANHO_BLOCO + espacoEntreBarreiras),  // Centraliza com base no número de barreiras
+            heroi->pos.y - distanciaBarreiras,
+            B_LARGURA * TAMANHO_BLOCO, 
+            B_ALTURA * TAMANHO_BLOCO 
+        };
+    }
+}
+
+void DesenharBarreiras(Barreira barreiras[NUM_BARREIRAS]) {
+    for (int b = 0; b < NUM_BARREIRAS; b++) {
+        for (int i = 0; i < B_ALTURA; i++) {
+            for (int j = 0; j < B_LARGURA; j++) {
+                if (barreiras[b].blocos[i][j] == 1) {
+                    DrawRectangle(barreiras[b].pos.x + j * TAMANHO_BLOCO, 
+                                  barreiras[b].pos.y + i * TAMANHO_BLOCO, 
+                                  TAMANHO_BLOCO, TAMANHO_BLOCO, GREEN);
+                }
+            }
+        }
     }
 }
 
@@ -277,8 +436,6 @@ void DesenhaNaves(Jogo *j) {
     }
 }
 
-
-
 void DesenhaHeroi(Jogo *j) { 
     DrawTexture(j->assets.naveheroi, j->heroi.pos.x, j->heroi.pos.y, WHITE);
 }
@@ -296,8 +453,6 @@ void DesenhaBalas(Jogo *j) {
         }
     }
 }
-
-
 
 void DesenhaBalasHeroi(Jogo *j){ 
     if (j->heroi.bala.ativa) {
@@ -320,9 +475,8 @@ void AtualizaHeroi(Jogo *j) {
 
 void AtiraBalas(Jogo *j) {
     for (int i = 0; i < 10; i++) {  
-        // Verifica se passou tempo suficiente e sorteia se a nave atira
         if (!j->naves[i].bala.ativa && GetTime() - j->naves[i].bala.tempo > j->naves[i].bala.proximoTiro) {
-            if (GetRandomValue(1, 100) <= CHANCE_DE_TIRO) {  // 40% de chance de atirar
+            if (GetRandomValue(1, 100) <= CHANCE_DE_TIRO) { 
                 j->naves[i].bala.pos = (Rectangle){
                     j->naves[i].pos.x + j->naves[i].pos.width / 2 - LARGURA_BALA / 2, 
                     j->naves[i].pos.y, 
@@ -330,7 +484,7 @@ void AtiraBalas(Jogo *j) {
                 };
                 j->naves[i].bala.ativa = 1;
                 j->naves[i].bala.tempo = GetTime();
-                j->naves[i].bala.proximoTiro = GetRandomValue(TEMPO_MIN_TIRO, TEMPO_MAX_TIRO); // Define novo tempo aleatório
+                j->naves[i].bala.proximoTiro = GetRandomValue(TEMPO_MIN_TIRO, TEMPO_MAX_TIRO); 
                 PlaySound(j->naves[i].bala.tiro);
             }
         }
@@ -347,7 +501,7 @@ void AtiraBalas(Jogo *j) {
 }
 
 void AtirarBalasHeroi(Jogo *j) {
-    if (IsKeyPressed(KEY_SPACE) && j->heroi.bala.ativa == 0) { //Se a tecla espaço estiver apertada e não houver nenhuma bala, o heroi atira
+    if (IsKeyPressed(KEY_SPACE) && j->heroi.bala.ativa == 0) { 
         j->heroi.bala.pos = (Rectangle){
             j->heroi.pos.x + j->heroi.pos.width / 2 - LARGURA_BALA / 2,
             j->heroi.pos.y - ALTURA_BALA,
@@ -359,7 +513,7 @@ void AtirarBalasHeroi(Jogo *j) {
         PlaySound(j->heroi.bala.tiro);
     }
 
-    if (j->heroi.bala.ativa) { //Se tiver uma bala ativa, ela avança em linha reta e checa as colisões
+    if (j->heroi.bala.ativa) { 
         j->heroi.bala.pos.y -= j->heroi.bala.velocidade;
         if (ColisaoBalasHeroi(j)) {
             j->heroi.bala.ativa = 0;
@@ -368,7 +522,6 @@ void AtirarBalasHeroi(Jogo *j) {
         DesenhaBalasHeroi(j);
     }
 }
-
 
 void ColisaoBordas(Jogo *j) { 
     for (int i = 0; i < 10; i++) { 
@@ -387,8 +540,6 @@ void ColisaoBordas(Jogo *j) {
     }
 }
 
-
-
 int ColisaoBalasNave(Jogo *j, int indiceNave) {
 
     if (CheckCollisionRecs(j->naves[indiceNave].bala.pos, j->heroi.pos)) {
@@ -402,9 +553,7 @@ int ColisaoBalasNave(Jogo *j, int indiceNave) {
     return 0; 
 }
 
-
 int ColisaoBalasHeroi(Jogo *j) {
-
     for (int i = 0; i < 10; i++) { 
         if (j->naves[i].vida > 0 && CheckCollisionRecs(j->heroi.bala.pos, j->naves[i].pos)) {
             j->naves[i].vida = 0;  
@@ -412,16 +561,33 @@ int ColisaoBalasHeroi(Jogo *j) {
             return 1; 
         }
     }
-
     if (CheckCollisionRecs(j->heroi.bala.pos, j->bordas[0].pos)) {
         j->heroi.bala.ativa = 0; 
         return 1; 
     }
 
+    for (int i = 0; i < NUM_BARREIRAS; i++) {
+        for (int y = 0; y < B_ALTURA; y++) {
+            for (int x = 0; x < B_LARGURA; x++) {
+                if (j->barreiras[i].blocos[y][x]) {
+                    Rectangle bloco = { 
+                        j->barreiras[i].pos.x + x * TAMANHO_BLOCO, 
+                        j->barreiras[i].pos.y + y * TAMANHO_BLOCO, 
+                        TAMANHO_BLOCO, TAMANHO_BLOCO 
+                    };
+
+                    if (CheckCollisionRecs(bloco, j->heroi.bala.pos)) {
+
+                        j->heroi.bala.ativa = 0; 
+                        return 1;
+                    }
+                }
+            }
+        }
+    }
+
     return 0; 
 }
-
-
 
 int TodasAsNavesMorreram(Jogo *j) {
     for (int i = 0; i < 10; i++) {  
