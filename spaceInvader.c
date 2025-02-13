@@ -12,7 +12,7 @@
 #define LARGURA_BALA 10
 #define ALTURA_BALA 15
 #define BORDAS 10
-#define CHANCE_DE_TIRO 15  // 15% de chance de atirar
+#define CHANCE_DE_TIRO 1 
 #define TEMPO_MIN_TIRO 2
 #define TEMPO_MAX_TIRO 5
 #define MAX_NOME 10
@@ -67,7 +67,7 @@ typedef struct Assets{
 }Assets;
 
 typedef struct Jogo{
-    Nave naves[10];
+    Nave naves[40];
     Heroi heroi;
     Bordas bordas[4];
     Assets assets;
@@ -207,7 +207,7 @@ int main() {
                     }
                 }
 
-                for (int i = 0; i < 10; i++) {  
+                for (int i = 0; i < 40; i++) {  
                     if (jogo.naves[i].bala.ativa) {  
                         for (int j = 0; j < NUM_BARREIRAS; j++) {
                             for (int y = 0; y < B_ALTURA; y++) {
@@ -218,17 +218,16 @@ int main() {
                                             jogo.barreiras[j].pos.y + y * TAMANHO_BLOCO, 
                                             TAMANHO_BLOCO, TAMANHO_BLOCO 
                                         };
-                                        if (CheckCollisionRecs(bloco, jogo.naves[i].bala.pos)) {
-                                            jogo.barreiras[j].blocos[y][x] = 0; 
-                                            jogo.naves[i].bala.ativa = 0;  
-                                            PlaySound(jogo.naves[i].bala.tiro);  
+                                        if (CheckCollisionRecs(jogo.naves[i].bala.pos, bloco)) {
+                                            jogo.naves[i].bala.ativa = false;
+                                            jogo.barreiras[j].blocos[y][x] = 0;
                                         }
                                     }
                                 }
                             }
-                        }
+                        }  
                     }
-                }        
+                }    
 
                 if (TodasAsNavesMorreram(&jogo)) {
                     while (!WindowShouldClose()) {
@@ -287,17 +286,32 @@ void IniciaJogo(Jogo *j){
     j->heroi.color = WHITE;
     j->heroi.bala.tiro = LoadSound("assets/shoot.wav");
 
-    for (int i = 0; i < 10; i++) {  
-        j->naves[i].direcao = 1;
-        j->naves[i].bala.ativa = 0;
-        j->naves[i].bala.tempo = GetTime();
-        j->naves[i].bala.velocidade = 5;
-        j->naves[i].velocidade = 3;
-        j->naves[i].vida = 1;
-        j->naves[i].pos = (Rectangle) {i * 40, 15, STD_SIZE_X, STD_SIZE_Y};  
-        j->naves[i].color = RED;
-        j->naves[i].bala.tiro = LoadSound("assets/shoot.wav");
+    int naves_por_linha = 10;
+    int num_linhas = 4;
+
+    for (int linha = 0; linha < num_linhas; linha++) {
+        for (int coluna = 0; coluna < naves_por_linha; coluna++) {
+            int i = linha * naves_por_linha + coluna; // Índice único para cada nave
+            
+            j->naves[i].direcao = 1;
+            j->naves[i].bala.ativa = 0;
+            j->naves[i].bala.tempo = GetTime();
+            j->naves[i].bala.velocidade = 5;
+            j->naves[i].velocidade = 3;
+            j->naves[i].vida = 1;
+            
+            // Posições ajustadas para formar as fileiras
+            j->naves[i].pos = (Rectangle) {
+                coluna * 40,               // Posição horizontal (coluna)
+                linha * 40 + 15,           // Posição vertical (linha), com 15 de espaçamento
+                STD_SIZE_X, STD_SIZE_Y
+            };
+            
+            j->naves[i].color = RED;
+            j->naves[i].bala.tiro = LoadSound("assets/shoot.wav");
+        }
     }
+
 
     j->bordas[0].pos = (Rectangle){0, 0, LARGURA_JANELA, 10}; 
     j->bordas[1].pos = (Rectangle){0, ALTURA_JANELA-10, LARGURA_JANELA, 10}; 
@@ -319,16 +333,30 @@ void IniciaJogo(Jogo *j){
 }
 
 void IniciaNaves(Jogo *j) {
-    for (int i = 0; i < 10; i++) {  
-        j->naves[i].direcao = 1;
-        j->naves[i].bala.ativa = 0;
-        j->naves[i].bala.tempo = GetTime();
-        j->naves[i].bala.velocidade = 5;
-        j->naves[i].velocidade = 3;
-        j->naves[i].vida = 1;
-        j->naves[i].pos = (Rectangle) {i * 40, 15, STD_SIZE_X, STD_SIZE_Y};
-        j->naves[i].color = RED;
-        j->naves[i].bala.tiro = LoadSound("assets/shoot.wav");
+    int naves_por_linha = 10;
+    int num_linhas = 4;
+
+    for (int linha = 0; linha < num_linhas; linha++) {
+        for (int coluna = 0; coluna < naves_por_linha; coluna++) {
+            int i = linha * naves_por_linha + coluna; // Índice único para cada nave
+
+            j->naves[i].direcao = 1;
+            j->naves[i].bala.ativa = 0;
+            j->naves[i].bala.tempo = GetTime();
+            j->naves[i].bala.velocidade = 5;
+            j->naves[i].velocidade = 3;
+            j->naves[i].vida = 1;
+            
+            // Posições ajustadas para formar as fileiras
+            j->naves[i].pos = (Rectangle) {
+                coluna * 40,                // Posição horizontal (coluna)
+                linha * 40 + 15,            // Posição vertical (linha), com 15 de espaçamento
+                STD_SIZE_X, STD_SIZE_Y
+            };
+            
+            j->naves[i].color = RED;
+            j->naves[i].bala.tiro = LoadSound("assets/shoot.wav");
+        }
     }
 }
 
@@ -390,12 +418,20 @@ void AtualizaFrameDesenho(Jogo *j){
 }
 
 void AtualizaNavePos(Jogo *j) {
-    for (int i = 0; i < 10; i++) {  
-        ColisaoBordas(j);
-        if (j->naves[i].direcao == 1) {
-            j->naves[i].pos.x += j->naves[i].velocidade;
-        } else {
-            j->naves[i].pos.x -= j->naves[i].velocidade;
+    int naves_por_linha = 10;
+    int num_linhas = 4;
+
+    for (int linha = 0; linha < num_linhas; linha++) {
+        for (int coluna = 0; coluna < naves_por_linha; coluna++) {
+            int i = linha * naves_por_linha + coluna; // Índice único para cada nave
+            
+            ColisaoBordas(j);
+            
+            if (j->naves[i].direcao == 1) {
+                j->naves[i].pos.x += j->naves[i].velocidade;  // Move para a direita
+            } else {
+                j->naves[i].pos.x -= j->naves[i].velocidade;  // Move para a esquerda
+            }
         }
     }
 }
@@ -424,14 +460,22 @@ void DesenhaNaves(Jogo *j) {
         tempoUltimaTroca = GetTime();
     }
 
-    for (int i = 0; i < 10; i++) {  
-        if (j->naves[i].vida > 0) {  
-            Rectangle frameRecNave = {frame.x * tamanhoFrame.x, frame.y * tamanhoFrame.y,
-                                      tamanhoFrame.x, tamanhoFrame.y};
-          
-            DrawTexturePro(j->assets.naveVerde, frameRecNave, 
-                (Rectangle){j->naves[i].pos.x, j->naves[i].pos.y, 32, 32},
-                (Vector2){0, 0}, 0.0f, WHITE);
+    int naves_por_linha = 10;
+    int num_linhas = 4;
+
+    for (int linha = 0; linha < num_linhas; linha++) {
+        for (int coluna = 0; coluna < naves_por_linha; coluna++) {
+            int i = linha * naves_por_linha + coluna;  // Índice único para cada nave
+            
+            if (j->naves[i].vida > 0) {  
+                Rectangle frameRecNave = {frame.x * tamanhoFrame.x, frame.y * tamanhoFrame.y,
+                                          tamanhoFrame.x, tamanhoFrame.y};
+
+                // Posição ajustada para formar as fileiras de naves
+                DrawTexturePro(j->assets.naveVerde, frameRecNave, 
+                    (Rectangle){j->naves[i].pos.x, j->naves[i].pos.y, 32, 32},
+                    (Vector2){0, 0}, 0.0f, WHITE);
+            }
         }
     }
 }
@@ -447,9 +491,16 @@ void DesenhaBordas(Jogo *j){
 }
 
 void DesenhaBalas(Jogo *j) {
-    for (int i = 0; i < 10; i++) {  
-        if (j->naves[i].bala.ativa) {
-            DrawRectangleRec(j->naves[i].bala.pos, YELLOW);  
+    int naves_por_linha = 10;
+    int num_linhas = 4;
+
+    for (int linha = 0; linha < num_linhas; linha++) {
+        for (int coluna = 0; coluna < naves_por_linha; coluna++) {
+            int i = linha * naves_por_linha + coluna;  // Índice único para cada nave
+
+            if (j->naves[i].bala.ativa) {
+                DrawRectangleRec(j->naves[i].bala.pos, YELLOW);  
+            }
         }
     }
 }
@@ -474,28 +525,35 @@ void AtualizaHeroi(Jogo *j) {
 }
 
 void AtiraBalas(Jogo *j) {
-    for (int i = 0; i < 10; i++) {  
-        if (!j->naves[i].bala.ativa && GetTime() - j->naves[i].bala.tempo > j->naves[i].bala.proximoTiro) {
-            if (GetRandomValue(1, 100) <= CHANCE_DE_TIRO) { 
-                j->naves[i].bala.pos = (Rectangle){
-                    j->naves[i].pos.x + j->naves[i].pos.width / 2 - LARGURA_BALA / 2, 
-                    j->naves[i].pos.y, 
-                    LARGURA_BALA, ALTURA_BALA
-                };
-                j->naves[i].bala.ativa = 1;
-                j->naves[i].bala.tempo = GetTime();
-                j->naves[i].bala.proximoTiro = GetRandomValue(TEMPO_MIN_TIRO, TEMPO_MAX_TIRO); 
-                PlaySound(j->naves[i].bala.tiro);
+    int naves_por_linha = 10;
+    int num_linhas = 4;
+
+    for (int linha = 0; linha < num_linhas; linha++) {
+        for (int coluna = 0; coluna < naves_por_linha; coluna++) {
+            int i = linha * naves_por_linha + coluna;  // Índice único para cada nave
+
+            if (!j->naves[i].bala.ativa && GetTime() - j->naves[i].bala.tempo > j->naves[i].bala.proximoTiro) {
+                if (GetRandomValue(1, 100) <= CHANCE_DE_TIRO) { 
+                    j->naves[i].bala.pos = (Rectangle){
+                        j->naves[i].pos.x + j->naves[i].pos.width / 2 - LARGURA_BALA / 2, 
+                        j->naves[i].pos.y, 
+                        LARGURA_BALA, ALTURA_BALA
+                    };
+                    j->naves[i].bala.ativa = 1;
+                    j->naves[i].bala.tempo = GetTime();
+                    j->naves[i].bala.proximoTiro = GetRandomValue(TEMPO_MIN_TIRO, TEMPO_MAX_TIRO); 
+                    PlaySound(j->naves[i].bala.tiro);
+                }
             }
-        }
-        
-        // Movimenta a bala
-        if (j->naves[i].bala.ativa) {
-            j->naves[i].bala.pos.y += j->naves[i].bala.velocidade;
-            if (ColisaoBalasNave(j, i)) { 
-                j->naves[i].bala.ativa = 0;
+            
+            // Movimenta a bala
+            if (j->naves[i].bala.ativa) {
+                j->naves[i].bala.pos.y += j->naves[i].bala.velocidade;
+                if (ColisaoBalasNave(j, i)) { 
+                    j->naves[i].bala.ativa = 0;
+                }
+                DesenhaBalas(j);
             }
-            DesenhaBalas(j);
         }
     }
 }
@@ -524,17 +582,25 @@ void AtirarBalasHeroi(Jogo *j) {
 }
 
 void ColisaoBordas(Jogo *j) { 
-    for (int i = 0; i < 10; i++) { 
-        
-        if (CheckCollisionRecs(j->naves[i].pos, j->bordas[2].pos)) {
-            for (int k = 0; k < 10; k++) {  
-                j->naves[k].direcao = 1;  
-            }
-        } 
+    int naves_por_linha = 10;
+    int num_linhas = 4;
 
-        else if (CheckCollisionRecs(j->naves[i].pos, j->bordas[3].pos)) {
-            for (int k = 0; k < 10; k++) {  
-                j->naves[k].direcao = 0; 
+    for (int linha = 0; linha < num_linhas; linha++) {
+        for (int coluna = 0; coluna < naves_por_linha; coluna++) {
+            int i = linha * naves_por_linha + coluna;  // Índice único para cada nave
+
+            // Verifica colisão com a borda direita
+            if (CheckCollisionRecs(j->naves[i].pos, j->bordas[2].pos)) {
+                for (int k = 0; k < naves_por_linha * num_linhas; k++) {  
+                    j->naves[k].direcao = 1;  // Muda a direção para a direita
+                }
+            }
+
+            // Verifica colisão com a borda esquerda
+            else if (CheckCollisionRecs(j->naves[i].pos, j->bordas[3].pos)) {
+                for (int k = 0; k < naves_por_linha * num_linhas; k++) {  
+                    j->naves[k].direcao = 0;  // Muda a direção para a esquerda
+                }
             }
         }
     }
@@ -542,30 +608,44 @@ void ColisaoBordas(Jogo *j) {
 
 int ColisaoBalasNave(Jogo *j, int indiceNave) {
 
+    // Verifica colisão da bala com o herói
     if (CheckCollisionRecs(j->naves[indiceNave].bala.pos, j->heroi.pos)) {
-        j->heroi.vida = 0;
-        return 1;  
+        j->heroi.vida = 0;  // Se acertar o herói, ele perde vida
+        return 1;  // Retorna 1 para indicar colisão
     }
 
+    // Verifica colisão da bala com a borda inferior
     if (CheckCollisionRecs(j->naves[indiceNave].bala.pos, j->bordas[1].pos)) {
-        return 1;  
+        return 1;  // Retorna 1 para indicar que a bala atingiu a borda
     }
-    return 0; 
+
+    return 0;  // Retorna 0 se não houver colisão
 }
 
+
 int ColisaoBalasHeroi(Jogo *j) {
-    for (int i = 0; i < 10; i++) { 
-        if (j->naves[i].vida > 0 && CheckCollisionRecs(j->heroi.bala.pos, j->naves[i].pos)) {
-            j->naves[i].vida = 0;  
-            j->heroi.bala.ativa = 0; 
-            return 1; 
+    int naves_por_linha = 10;
+    int num_linhas = 4;
+
+    // Verifica colisão da bala do herói com as naves
+    for (int linha = 0; linha < num_linhas; linha++) {
+        for (int coluna = 0; coluna < naves_por_linha; coluna++) {
+            int i = linha * naves_por_linha + coluna;  // Índice único para cada nave
+            if (j->naves[i].vida > 0 && CheckCollisionRecs(j->heroi.bala.pos, j->naves[i].pos)) {
+                j->naves[i].vida = 0;  // Destroi a nave
+                j->heroi.bala.ativa = 0;  // Desativa a bala do herói
+                return 1;  // Colisão detectada
+            }
         }
     }
+
+    // Verifica colisão da bala do herói com a borda superior
     if (CheckCollisionRecs(j->heroi.bala.pos, j->bordas[0].pos)) {
-        j->heroi.bala.ativa = 0; 
-        return 1; 
+        j->heroi.bala.ativa = 0;  // Desativa a bala
+        return 1;  // Colisão detectada
     }
 
+    // Verifica colisão da bala com as barreiras
     for (int i = 0; i < NUM_BARREIRAS; i++) {
         for (int y = 0; y < B_ALTURA; y++) {
             for (int x = 0; x < B_LARGURA; x++) {
@@ -577,23 +657,29 @@ int ColisaoBalasHeroi(Jogo *j) {
                     };
 
                     if (CheckCollisionRecs(bloco, j->heroi.bala.pos)) {
-
-                        j->heroi.bala.ativa = 0; 
-                        return 1;
+                        j->heroi.bala.ativa = 0;  // Desativa a bala
+                        return 1;  // Colisão detectada
                     }
                 }
             }
         }
     }
 
-    return 0; 
+    return 0;  // Nenhuma colisão detectada
 }
 
 int TodasAsNavesMorreram(Jogo *j) {
-    for (int i = 0; i < 10; i++) {  
-        if (j->naves[i].vida > 0) {
-            return 0; 
+    int naves_por_linha = 10;
+    int num_linhas = 4;
+
+    // Percorre todas as naves e verifica se ainda há alguma com vida
+    for (int linha = 0; linha < num_linhas; linha++) {
+        for (int coluna = 0; coluna < naves_por_linha; coluna++) {
+            int i = linha * naves_por_linha + coluna;  // Índice único para cada nave
+            if (j->naves[i].vida > 0) {
+                return 0;  // Se houver uma nave com vida, retorna 0 (não todas as naves morreram)
+            }
         }
     }
-    return 1;
+    return 1;  // Se todas as naves tiverem morrido, retorna 1
 }
