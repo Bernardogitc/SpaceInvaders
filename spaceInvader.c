@@ -17,6 +17,7 @@
 #define TEMPO_MAX_TIRO 5
 #define MAX_NOME 10
 #define TEMPO_LIMITE 180
+#define TECLA_HACK KEY_F2
 
 #define B_LARGURA 6
 #define B_ALTURA 4
@@ -76,7 +77,9 @@ typedef struct Jogo {
     int larguraJanela;
     int tempoAnimacao;
     Barreira barreiras[NUM_BARREIRAS];
-    double tempoRestante; // Adicionado para o cronômetro
+    double tempoRestante;
+    bool hackAtivado;
+    char nomeJogador[MAX_NOME];
 } Jogo;
 
 void IniciaJogo(Jogo *j);
@@ -103,6 +106,7 @@ void InicializarBarreiras(Barreira barreiras[NUM_BARREIRAS], Heroi *heroi, Jogo 
 void DesenharBarreiras(Barreira barreiras[NUM_BARREIRAS]);
 void AtualizaCronometro(Jogo *j);
 void DesenhaTempoRestante(Jogo *j);
+void DesenhaHUD(Jogo *j);
 
 int main() {
     InitAudioDevice();
@@ -124,11 +128,13 @@ int main() {
     bool jogoFinalizado = false; 
 
     while (!WindowShouldClose()) {
-
         if (!JogoIniciado && !jogoFinalizado) {
-
             BeginDrawing();
             ClearBackground(BLACK);
+
+            int larguraTextoNome = MeasureText("2. Nome: ", 20);
+            int larguraNomeJogador = MeasureText(nomeJogador, 20);
+            int larguraTotal = larguraTextoNome + larguraNomeJogador;
 
             DrawTexture(logo, (LARGURA_JANELA - logo.width) / 2, 150, WHITE);
 
@@ -137,14 +143,13 @@ int main() {
             Color corSair = (opcaoSelecionada == 2) ? YELLOW : WHITE;
 
             DrawText("1. Jogar", (LARGURA_JANELA - MeasureText("1. Jogar", 20)) / 2, 400, 20, corJogar);
-            DrawText("2. Nome: ", (LARGURA_JANELA - MeasureText("2. Nome", 20)) / 2, 450, 20, corNome);
-            DrawText(nomeJogador, (LARGURA_JANELA - MeasureText(nomeJogador, 20)) / 2 + 80, 450, 20, WHITE); 
+            DrawText("2. Nome: ", (LARGURA_JANELA - larguraTotal) / 2, 450, 20, corNome);
+            DrawText(nomeJogador, (LARGURA_JANELA - larguraTotal) / 2 + larguraTextoNome, 450, 20, WHITE); 
             DrawText("3. Sair", (LARGURA_JANELA - MeasureText("3. Sair", 20)) / 2, 500, 20, corSair);
 
             EndDrawing();
 
             if (digitandoNome) {
-
                 int key = GetCharPressed();
                 while (key > 0) {
                     int len = strlen(nomeJogador);
@@ -170,6 +175,7 @@ int main() {
 
                 if (IsKeyPressed(KEY_ENTER)) {
                     if (opcaoSelecionada == 0) {
+                        strncpy(jogo.nomeJogador, nomeJogador, MAX_NOME);
                         JogoIniciado = true;
                     } else if (opcaoSelecionada == 1) {
                         digitandoNome = 1;
@@ -182,7 +188,6 @@ int main() {
         }
 
         if (JogoIniciado && !jogoFinalizado) {
-
             IniciaJogo(&jogo);
             CarregaImagens(&jogo);
             InicializarBarreiras(jogo.barreiras, &jogo.heroi, &jogo);
@@ -192,7 +197,12 @@ int main() {
 
             while (!WindowShouldClose() && !jogoFinalizado) {
                 UpdateMusicStream(musicaJogo);
-                AtualizaFrameDesenho(&jogo);
+
+                if (IsKeyPressed(TECLA_HACK)) {
+                    jogo.hackAtivado = true;
+                    jogoFinalizado = true;
+                    jogo.heroi.vida = 0; // Força estado de derrota
+                }
 
                 // Atualiza o cronômetro e verifica se o tempo acabou
                 jogo.tempoRestante -= GetFrameTime(); // Reduz o tempo restante
@@ -216,6 +226,8 @@ int main() {
                         }
                     }
                 }
+
+                AtualizaFrameDesenho(&jogo);
 
                 for (int i = 0; i < NUM_BARREIRAS; i++) {
                     for (int y = 0; y < B_ALTURA; y++) {
@@ -251,17 +263,23 @@ int main() {
                     }
                 }    
 
-                if (TodasAsNavesMorreram(&jogo)) {
+                if (TodasAsNavesMorreram(&jogo) || jogo.hackAtivado) {
+                    const char* mensagem = jogo.hackAtivado ? 
+                    "Jogo encerrado (F2)" : "Você venceu!";
+                    Color cor = jogo.hackAtivado ? GRAY : GREEN;
+
                     while (!WindowShouldClose()) {
                         BeginDrawing();
                         ClearBackground(BLACK);
-                        Vector2 tamanhoTexto = MeasureTextEx(GetFontDefault(), "Você venceu!", 20, 1);
-                        DrawText("Você venceu!", (LARGURA_JANELA - tamanhoTexto.x) / 2, (ALTURA_JANELA - tamanhoTexto.y) / 2, 20, GREEN);
+                        DrawText(mensagem, 
+                            (LARGURA_JANELA - MeasureText(mensagem, 20)) / 2, 
+                            (ALTURA_JANELA - 20) / 2, 20, cor);
                         DrawText("Pressione ENTER para voltar ao menu", 200, 300, 20, WHITE);
                         EndDrawing();
 
                         if (IsKeyPressed(KEY_ENTER)) {
                             jogoFinalizado = true; 
+                            jogo.hackAtivado = false;
                             break; 
                         }
                     }
@@ -355,16 +373,21 @@ void IniciaJogo(Jogo *j){
 
 void AtualizaCronometro(Jogo *j) {
     if (j->tempoRestante > 0) {
-        j->tempoRestante -= GetFrameTime(); // Reduz o tempo restante com base no tempo do frame
+        j->tempoRestante -= GetFrameTime();
     } else {
-        j->tempoRestante = 0; // Garante que o tempo não fique negativo
+        j->tempoRestante = 0;
     }
 }
 
 void DesenhaTempoRestante(Jogo *j) {
+    int posX = 10; 
+    int posY = 10 + 2 * (20 + 5);
+    int tamanhoFonte = 20;
+    Color corTexto = WHITE;
+
     char tempoTexto[20];
     snprintf(tempoTexto, sizeof(tempoTexto), "Tempo: %.0f", j->tempoRestante);
-    DrawText(tempoTexto, 10, 10, 20, WHITE);
+    DrawText(tempoTexto, posX, posY, tamanhoFonte, corTexto);
 }
 
 void IniciaNaves(Jogo *j) {
@@ -445,6 +468,7 @@ void DesenhaJogo(Jogo *j){
     DesenhaHeroi(j);
     DesenhaBordas(j);
     DesenhaTempoRestante(j);
+    DesenhaHUD(j);
     EndDrawing();
 }
 
@@ -742,4 +766,20 @@ int TodasAsNavesMorreram(Jogo *j) {
         }
     }
     return 1;  // Se todas as naves tiverem morrido, retorna 1
+}
+
+void DesenhaHUD(Jogo *j) {
+    int posX = 10;
+    int posY = 10;
+    int tamanhoFonte = 20;
+    Color corTexto = WHITE;
+    int espacamento = 5;
+
+    char textoNome[50];
+    snprintf(textoNome, sizeof(textoNome), "Jogador: %s", j->nomeJogador);
+    DrawText(textoNome, posX, posY, tamanhoFonte, corTexto);
+
+    char textoVida[50];
+    snprintf(textoVida, sizeof(textoVida), "Vidas: %d", j->heroi.vida);
+    DrawText(textoVida, posX, posY + tamanhoFonte + espacamento, tamanhoFonte, corTexto);
 }
