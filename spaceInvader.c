@@ -16,6 +16,7 @@
 #define TEMPO_MIN_TIRO 2
 #define TEMPO_MAX_TIRO 5
 #define MAX_NOME 10
+#define TEMPO_LIMITE 180
 
 #define B_LARGURA 6
 #define B_ALTURA 4
@@ -66,7 +67,7 @@ typedef struct Assets{
     Sound tiro;
 }Assets;
 
-typedef struct Jogo{
+typedef struct Jogo {
     Nave naves[40];
     Heroi heroi;
     Bordas bordas[4];
@@ -75,6 +76,7 @@ typedef struct Jogo{
     int larguraJanela;
     int tempoAnimacao;
     Barreira barreiras[NUM_BARREIRAS];
+    double tempoRestante; // Adicionado para o cronômetro
 } Jogo;
 
 void IniciaJogo(Jogo *j);
@@ -99,6 +101,8 @@ void AtirarBalasHeroi(Jogo *j);
 int TodasAsNavesMorreram(Jogo *j);
 void InicializarBarreiras(Barreira barreiras[NUM_BARREIRAS], Heroi *heroi, Jogo *jogo);
 void DesenharBarreiras(Barreira barreiras[NUM_BARREIRAS]);
+void AtualizaCronometro(Jogo *j);
+void DesenhaTempoRestante(Jogo *j);
 
 int main() {
     InitAudioDevice();
@@ -132,14 +136,12 @@ int main() {
             Color corNome = (opcaoSelecionada == 1) ? YELLOW : WHITE;
             Color corSair = (opcaoSelecionada == 2) ? YELLOW : WHITE;
 
-
             DrawText("1. Jogar", (LARGURA_JANELA - MeasureText("1. Jogar", 20)) / 2, 400, 20, corJogar);
             DrawText("2. Nome: ", (LARGURA_JANELA - MeasureText("2. Nome", 20)) / 2, 450, 20, corNome);
             DrawText(nomeJogador, (LARGURA_JANELA - MeasureText(nomeJogador, 20)) / 2 + 80, 450, 20, WHITE); 
             DrawText("3. Sair", (LARGURA_JANELA - MeasureText("3. Sair", 20)) / 2, 500, 20, corSair);
 
             EndDrawing();
-
 
             if (digitandoNome) {
 
@@ -168,13 +170,10 @@ int main() {
 
                 if (IsKeyPressed(KEY_ENTER)) {
                     if (opcaoSelecionada == 0) {
-
                         JogoIniciado = true;
                     } else if (opcaoSelecionada == 1) {
-
                         digitandoNome = 1;
                     } else if (opcaoSelecionada == 2) {
-
                         CloseWindow();
                         return 0;
                     }
@@ -194,6 +193,29 @@ int main() {
             while (!WindowShouldClose() && !jogoFinalizado) {
                 UpdateMusicStream(musicaJogo);
                 AtualizaFrameDesenho(&jogo);
+
+                // Atualiza o cronômetro e verifica se o tempo acabou
+                jogo.tempoRestante -= GetFrameTime(); // Reduz o tempo restante
+                if (jogo.tempoRestante <= 0) {
+                    jogo.tempoRestante = 0; // Garante que o tempo não fique negativo
+
+                    // Verifica se o jogador não derrotou todas as naves
+                    if (!TodasAsNavesMorreram(&jogo)) {
+                        while (!WindowShouldClose()) {
+                            BeginDrawing();
+                            ClearBackground(BLACK);
+                            Vector2 tamanhoTexto = MeasureTextEx(GetFontDefault(), "Tempo esgotado! Você perdeu.", 20, 1);
+                            DrawText("Tempo esgotado! Você perdeu.", (LARGURA_JANELA - tamanhoTexto.x) / 2, (ALTURA_JANELA - tamanhoTexto.y) / 2, 20, RED);
+                            DrawText("Pressione ENTER para voltar ao menu", 200, 300, 20, WHITE);
+                            EndDrawing();
+
+                            if (IsKeyPressed(KEY_ENTER)) {
+                                jogoFinalizado = true;
+                                break;
+                            }
+                        }
+                    }
+                }
 
                 for (int i = 0; i < NUM_BARREIRAS; i++) {
                     for (int y = 0; y < B_ALTURA; y++) {
@@ -249,7 +271,7 @@ int main() {
                     while (!WindowShouldClose()) {
                         BeginDrawing();
                         ClearBackground(BLACK);
-                        Vector2 tamanhoTexto = MeasureTextEx(GetFontDefault(), win, 20, 1);
+                        Vector2 tamanhoTexto = MeasureTextEx(GetFontDefault(), lose, 20, 1);
                         DrawText(lose, (LARGURA_JANELA - tamanhoTexto.x) / 2, (ALTURA_JANELA - tamanhoTexto.y) / 2, 20, RED);
                         DrawText("Pressione ENTER para voltar ao menu", 200, 300, 20, WHITE);
                         EndDrawing();
@@ -273,10 +295,9 @@ int main() {
     return 0;
 }
 
-
 void IniciaJogo(Jogo *j){
     j->tempoAnimacao = GetTime();
-
+    j->tempoRestante = TEMPO_LIMITE; // 180 segundos
     j->heroi.bala.ativa = 0;
     j->heroi.bala.tempo = GetTime();
     j->heroi.bala.velocidade = 15;
@@ -330,6 +351,20 @@ void IniciaJogo(Jogo *j){
             }
         }
     }
+}
+
+void AtualizaCronometro(Jogo *j) {
+    if (j->tempoRestante > 0) {
+        j->tempoRestante -= GetFrameTime(); // Reduz o tempo restante com base no tempo do frame
+    } else {
+        j->tempoRestante = 0; // Garante que o tempo não fique negativo
+    }
+}
+
+void DesenhaTempoRestante(Jogo *j) {
+    char tempoTexto[20];
+    snprintf(tempoTexto, sizeof(tempoTexto), "Tempo: %.0f", j->tempoRestante);
+    DrawText(tempoTexto, 10, 10, 20, WHITE);
 }
 
 void IniciaNaves(Jogo *j) {
@@ -409,6 +444,7 @@ void DesenhaJogo(Jogo *j){
     DesenhaNaves(j);
     DesenhaHeroi(j);
     DesenhaBordas(j);
+    DesenhaTempoRestante(j);
     EndDrawing();
 }
 
@@ -533,7 +569,7 @@ void AtiraBalas(Jogo *j) {
             int i = linha * naves_por_linha + coluna;  // Índice único para cada nave
 
             if (!j->naves[i].bala.ativa && GetTime() - j->naves[i].bala.tempo > j->naves[i].bala.proximoTiro) {
-                if (GetRandomValue(1, 100) <= CHANCE_DE_TIRO) { 
+                if (GetRandomValue(1, 200) == CHANCE_DE_TIRO) { 
                     j->naves[i].bala.pos = (Rectangle){
                         j->naves[i].pos.x + j->naves[i].pos.width / 2 - LARGURA_BALA / 2, 
                         j->naves[i].pos.y, 
@@ -557,6 +593,7 @@ void AtiraBalas(Jogo *j) {
         }
     }
 }
+
 
 void AtirarBalasHeroi(Jogo *j) {
     if (IsKeyPressed(KEY_SPACE) && j->heroi.bala.ativa == 0) { 
