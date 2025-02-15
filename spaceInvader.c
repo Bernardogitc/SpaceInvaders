@@ -456,13 +456,27 @@ void AtualizaFrameDesenho(Jogo *j){
 void AtualizaNavePos(Jogo *j) {
     int naves_por_linha = 10;
     int num_linhas = 4;
+    static float tempoUltimoAumento = 0; // Armazena o tempo do último aumento
 
+    // Aumenta a velocidade das naves a cada 45 segundos
+    if (GetTime() - tempoUltimoAumento >= 45) {
+        float fatorAumento = 1.1; // Fator de aumento da velocidade
+
+        // Aplica o aumento de velocidade para todas as naves antes do movimento
+        for (int i = 0; i < num_linhas * naves_por_linha; i++) {
+            j->naves[i].velocidade *= fatorAumento;
+        }
+
+        tempoUltimoAumento = GetTime(); // Atualiza o tempo do último aumento
+    }
+
+    // Atualiza a posição das naves
     for (int linha = 0; linha < num_linhas; linha++) {
         for (int coluna = 0; coluna < naves_por_linha; coluna++) {
             int i = linha * naves_por_linha + coluna; // Índice único para cada nave
-            
+
             ColisaoBordas(j);
-            
+
             if (j->naves[i].direcao == 1) {
                 j->naves[i].pos.x += j->naves[i].velocidade;  // Move para a direita
             } else {
@@ -563,13 +577,22 @@ void AtualizaHeroi(Jogo *j) {
 void AtiraBalas(Jogo *j) {
     int naves_por_linha = 10;
     int num_linhas = 4;
+    static float tempoUltimoAumento = 0; // Armazena o tempo do último aumento
+
+    // Aumenta a velocidade das balas a cada 45 segundos
+    if (GetTime() - tempoUltimoAumento >= 45) {
+        for (int i = 0; i < num_linhas * naves_por_linha; i++) {
+            j->naves[i].bala.velocidade *= 1.15; // Aumenta a velocidade da bala em 15%
+        }
+        tempoUltimoAumento = GetTime(); // Atualiza o tempo do último aumento
+    }
 
     for (int linha = 0; linha < num_linhas; linha++) {
         for (int coluna = 0; coluna < naves_por_linha; coluna++) {
             int i = linha * naves_por_linha + coluna;  // Índice único para cada nave
 
             if (!j->naves[i].bala.ativa && GetTime() - j->naves[i].bala.tempo > j->naves[i].bala.proximoTiro) {
-                if (GetRandomValue(1, 200) == CHANCE_DE_TIRO) { 
+                if (GetRandomValue(1, 500) == CHANCE_DE_TIRO) { 
                     j->naves[i].bala.pos = (Rectangle){
                         j->naves[i].pos.x + j->naves[i].pos.width / 2 - LARGURA_BALA / 2, 
                         j->naves[i].pos.y, 
