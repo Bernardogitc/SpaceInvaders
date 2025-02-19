@@ -18,6 +18,7 @@
 #define MAX_NOME 10
 #define TEMPO_LIMITE 180
 #define TECLA_HACK KEY_F2
+#define VELOCIDADE_MAX_BALA 100
 
 #define B_LARGURA 6
 #define B_ALTURA 4
@@ -91,6 +92,9 @@ void IniciaJogo(Jogo *j);
 void IniciaNaves(Jogo *j);
 void InicializarBarreiras(Barreira barreiras[NUM_BARREIRAS], Heroi *heroi, Jogo *jogo);
 
+bool MenuPrincipal(Jogo *jogo, Texture2D logo, int *opcaoSelecionada, char *nomeJogador, int *digitandoNome);
+void DesenharTextoComCascata(const char *texto, int posX, int posY, int fontSize, Color cor, float tempo, bool selecionado, float espacamento);
+
 void AtualizaJogo(Jogo *j);
 void AtualizaFrameDesenho(Jogo *j);
 void AtualizaNavePos(Jogo *j);
@@ -143,66 +147,12 @@ int main() {
     char nomeJogador[MAX_NOME] = "";
     int digitandoNome = 0;
     bool JogoIniciado = false;
-    bool jogoFinalizado = false; 
+    bool jogoFinalizado = false;
 
     while (!WindowShouldClose()) {
         if (!JogoIniciado && !jogoFinalizado) {
-            BeginDrawing();
-            ClearBackground(BLACK);
 
-            int larguraTextoNome = MeasureText("2. Nome: ", 20);
-            int larguraNomeJogador = MeasureText(nomeJogador, 20);
-            int larguraTotal = larguraTextoNome + larguraNomeJogador;
-
-            DrawTexture(logo, (LARGURA_JANELA - logo.width) / 2, 150, WHITE);
-
-            Color corJogar = (opcaoSelecionada == 0) ? YELLOW : WHITE;
-            Color corNome = (opcaoSelecionada == 1) ? YELLOW : WHITE;
-            Color corSair = (opcaoSelecionada == 2) ? YELLOW : WHITE;
-
-            DrawText("1. Jogar", (LARGURA_JANELA - MeasureText("1. Jogar", 20)) / 2, 400, 20, corJogar);
-            DrawText("2. Nome: ", (LARGURA_JANELA - larguraTotal) / 2, 450, 20, corNome);
-            DrawText(nomeJogador, (LARGURA_JANELA - larguraTotal) / 2 + larguraTextoNome, 450, 20, WHITE); 
-            DrawText("3. Sair", (LARGURA_JANELA - MeasureText("3. Sair", 20)) / 2, 500, 20, corSair);
-
-            EndDrawing();
-
-            if (digitandoNome) {
-                int key = GetCharPressed();
-                while (key > 0) {
-                    int len = strlen(nomeJogador);
-                    if (len < MAX_NOME - 1) {
-                        nomeJogador[len] = (char)key;
-                        nomeJogador[len + 1] = '\0';
-                    }
-                    key = GetCharPressed();
-                }
-                if (IsKeyPressed(KEY_BACKSPACE) && strlen(nomeJogador) > 0) {
-                    nomeJogador[strlen(nomeJogador) - 1] = '\0';
-                }
-                if (IsKeyPressed(KEY_ENTER)) {
-                    digitandoNome = 0; 
-                }
-            } else {
-                // Navegação no menu
-                if (IsKeyPressed(KEY_DOWN)) {
-                    opcaoSelecionada = (opcaoSelecionada + 1) % 3;
-                } else if (IsKeyPressed(KEY_UP)) {
-                    opcaoSelecionada = (opcaoSelecionada - 1 + 3) % 3; 
-                }
-
-                if (IsKeyPressed(KEY_ENTER)) {
-                    if (opcaoSelecionada == 0) {
-                        strncpy(jogo.nomeJogador, nomeJogador, MAX_NOME);
-                        JogoIniciado = true;
-                    } else if (opcaoSelecionada == 1) {
-                        digitandoNome = 1;
-                    } else if (opcaoSelecionada == 2) {
-                        CloseWindow();
-                        return 0;
-                    }
-                }
-            }
+            JogoIniciado = MenuPrincipal(&jogo, logo, &opcaoSelecionada, nomeJogador, &digitandoNome);
         }
 
         if (JogoIniciado && !jogoFinalizado) {
@@ -219,15 +169,13 @@ int main() {
                 if (IsKeyPressed(TECLA_HACK)) {
                     jogo.hackAtivado = true;
                     jogoFinalizado = true;
-                    jogo.heroi.vida = 0; // Força estado de derrota
+                    jogo.heroi.vida = 0;
                 }
 
-                // Atualiza o cronômetro e verifica se o tempo acabou
-                jogo.tempoRestante -= GetFrameTime(); // Reduz o tempo restante
+                jogo.tempoRestante -= GetFrameTime();
                 if (jogo.tempoRestante <= 0) {
-                    jogo.tempoRestante = 0; // Garante que o tempo não fique negativo
+                    jogo.tempoRestante = 0;
 
-                    // Verifica se o jogador não derrotou todas as naves
                     if (!TodasAsNavesMorreram(&jogo)) {
                         while (!WindowShouldClose()) {
                             BeginDrawing();
@@ -259,16 +207,16 @@ int main() {
                     }
                 }
 
-                for (int i = 0; i < 40; i++) {  
-                    if (jogo.naves[i].bala.ativa) {  
+                for (int i = 0; i < 40; i++) {
+                    if (jogo.naves[i].bala.ativa) {
                         for (int j = 0; j < NUM_BARREIRAS; j++) {
                             for (int y = 0; y < B_ALTURA; y++) {
                                 for (int x = 0; x < B_LARGURA; x++) {
                                     if (jogo.barreiras[j].blocos[y][x]) {
-                                        Rectangle bloco = { 
-                                            jogo.barreiras[j].pos.x + x * TAMANHO_BLOCO, 
-                                            jogo.barreiras[j].pos.y + y * TAMANHO_BLOCO, 
-                                            TAMANHO_BLOCO, TAMANHO_BLOCO 
+                                        Rectangle bloco = {
+                                            jogo.barreiras[j].pos.x + x * TAMANHO_BLOCO,
+                                            jogo.barreiras[j].pos.y + y * TAMANHO_BLOCO,
+                                            TAMANHO_BLOCO, TAMANHO_BLOCO
                                         };
                                         if (CheckCollisionRecs(jogo.naves[i].bala.pos, bloco)) {
                                             jogo.naves[i].bala.ativa = false;
@@ -277,40 +225,117 @@ int main() {
                                     }
                                 }
                             }
-                        }  
+                        }
                     }
-                }    
+                }
 
                 if (jogo.heroi.vida <= 0 || jogo.tempoRestante <= 0 || TodasAsNavesMorreram(&jogo)) {
-                    // Carrega o placar atual
                     Placar placar[5];
                     CarregarPlacar(placar);
-                
-                    // Atualiza o placar com a pontuação do jogador
-                    int pontuacao = calcularPontuacao(&jogo); // Implemente uma função para calcular a pontuação
+                    int pontuacao = calcularPontuacao(&jogo);
                     AtualizarPlacar(placar, jogo.nomeJogador, pontuacao);
-                
-                    // Salva o placar atualizado
                     SalvarPlacar(placar);
-                
-                    // Exibe a tela de "Acabou!" com o placar
                     ExibirTelaAcabou(&jogo, placar);
-                
-                    // Encerra o jogo
                     jogoFinalizado = true;
                 }
             }
+
+            StopMusicStream(musicaJogo);
+            UnloadMusicStream(musicaJogo);
         }
 
         if (jogoFinalizado) {
             JogoIniciado = false;
-            jogoFinalizado = false; 
+            jogoFinalizado = false;
         }
     }
 
+    UnloadTexture(logo);
     CloseWindow();
     return 0;
 }
+
+void DesenharTextoComCascata(const char *texto, int posX, int posY, int fontSize, Color cor, float tempo, bool selecionado, float espacamento) {
+    int x = posX;
+
+    for (int i = 0; i < strlen(texto); i++) {
+        char letra[2] = {texto[i], '\0'};
+
+        float delay = i * 0.2f;
+        float offsetY = selecionado ? sin((tempo - delay) * 4.0f) * 3.0f : 0.0f;
+
+        DrawText(letra, x, posY + (int)offsetY, fontSize, cor);
+
+        x += MeasureText(letra, fontSize) + espacamento;
+    }
+}
+
+bool MenuPrincipal(Jogo *jogo, Texture2D logo, int *opcaoSelecionada, char *nomeJogador, int *digitandoNome) {
+    static float tempo = 0.0f;
+    tempo += GetFrameTime();
+
+    BeginDrawing();
+    ClearBackground(BLACK);
+
+    int larguraTextoNome = MeasureText("2. Nome: ", 20);
+    int larguraNomeJogador = MeasureText(nomeJogador, 20);
+    int espacamento = 20;
+    int larguraTotal = larguraTextoNome + larguraNomeJogador + espacamento;
+
+    DrawTexture(logo, (LARGURA_JANELA - logo.width) / 2, 150, WHITE);
+
+    Color corJogar = (*opcaoSelecionada == 0) ? YELLOW : WHITE;
+    Color corNome = (*opcaoSelecionada == 1) ? YELLOW : WHITE;
+    Color corSair = (*opcaoSelecionada == 2) ? YELLOW : WHITE;
+
+    DesenharTextoComCascata("1. Jogar", (LARGURA_JANELA - MeasureText("1. Jogar", 20)) / 2, 400, 20, corJogar, tempo, (*opcaoSelecionada == 0), 5.0f);
+    DesenharTextoComCascata("2. Nome: ", (LARGURA_JANELA - larguraTotal) / 2, 450, 20, corNome, tempo, (*opcaoSelecionada == 1), 5.0f);
+
+    DrawText(nomeJogador, (LARGURA_JANELA - larguraTotal) / 2 + larguraTextoNome + espacamento, 450, 20, WHITE);
+
+    DesenharTextoComCascata("3. Sair", (LARGURA_JANELA - MeasureText("3. Sair", 20)) / 2, 500, 20, corSair, tempo, (*opcaoSelecionada == 2), 5.0f);
+
+    EndDrawing();
+
+    if (*digitandoNome) {
+        int key = GetCharPressed();
+        while (key > 0) {
+            int len = strlen(nomeJogador);
+            if (len < MAX_NOME - 1) {
+                nomeJogador[len] = (char)key;
+                nomeJogador[len + 1] = '\0';
+            }
+            key = GetCharPressed();
+        }
+        if (IsKeyPressed(KEY_BACKSPACE) && strlen(nomeJogador) > 0) {
+            nomeJogador[strlen(nomeJogador) - 1] = '\0';
+        }
+        if (IsKeyPressed(KEY_ENTER)) {
+            *digitandoNome = 0;
+        }
+    } else {
+        if (IsKeyPressed(KEY_DOWN)) {
+            *opcaoSelecionada = (*opcaoSelecionada + 1) % 3;
+        } else if (IsKeyPressed(KEY_UP)) {
+            *opcaoSelecionada = (*opcaoSelecionada - 1 + 3) % 3;
+        }
+
+        if (IsKeyPressed(KEY_ENTER)) {
+            if (*opcaoSelecionada == 0) {
+                strncpy(jogo->nomeJogador, nomeJogador, MAX_NOME);
+                return true;
+            } else if (*opcaoSelecionada == 1) {
+                *digitandoNome = 1;
+            } else if (*opcaoSelecionada == 2) {
+                CloseWindow();
+                exit(0);
+            }
+        }
+    }
+    return false;
+}
+
+
 
 void IniciaNaves(Jogo *j) {
     int naves_por_linha = 10;
@@ -318,7 +343,7 @@ void IniciaNaves(Jogo *j) {
 
     for (int linha = 0; linha < num_linhas; linha++) {
         for (int coluna = 0; coluna < naves_por_linha; coluna++) {
-            int i = linha * naves_por_linha + coluna; // Índice único para cada nave
+            int i = linha * naves_por_linha + coluna;
 
             j->naves[i].direcao = 1;
             j->naves[i].bala.ativa = 0;
@@ -326,11 +351,10 @@ void IniciaNaves(Jogo *j) {
             j->naves[i].bala.velocidade = 5;
             j->naves[i].velocidade = 3;
             j->naves[i].vida = 1;
-            
-            // Posições ajustadas para formar as fileiras
+
             j->naves[i].pos = (Rectangle) {
-                coluna * 40,                // Posição horizontal (coluna)
-                linha * 40 + 15,            // Posição vertical (linha), com 15 de espaçamento
+                coluna * 40,
+                linha * 40 + 15,
                 STD_SIZE_X, STD_SIZE_Y
             };
             
@@ -342,7 +366,7 @@ void IniciaNaves(Jogo *j) {
 
 void IniciaJogo(Jogo *j){
     j->tempoAnimacao = GetTime();
-    j->tempoRestante = TEMPO_LIMITE; // 180 segundos
+    j->tempoRestante = TEMPO_LIMITE;
     j->heroi.bala.ativa = 0;
     j->heroi.bala.tempo = GetTime();
     j->heroi.bala.velocidade = 15;
@@ -357,7 +381,7 @@ void IniciaJogo(Jogo *j){
 
     for (int linha = 0; linha < num_linhas; linha++) {
         for (int coluna = 0; coluna < naves_por_linha; coluna++) {
-            int i = linha * naves_por_linha + coluna; // Índice único para cada nave
+            int i = linha * naves_por_linha + coluna;
             
             j->naves[i].direcao = 1;
             j->naves[i].bala.ativa = 0;
@@ -366,10 +390,9 @@ void IniciaJogo(Jogo *j){
             j->naves[i].velocidade = 3;
             j->naves[i].vida = 1;
             
-            // Posições ajustadas para formar as fileiras
             j->naves[i].pos = (Rectangle) {
-                coluna * 60,               // Posição horizontal (coluna)
-                linha * 50 + 50,           // Posição vertical (linha), com 15 de espaçamento
+                coluna * 60,
+                linha * 50 + 50,
                 STD_SIZE_X, STD_SIZE_Y
             };
             
@@ -437,14 +460,12 @@ void AtualizaFrameDesenho(Jogo *j){
 void AtualizaNavePos(Jogo *j) {
     int naves_por_linha = 10;
     int num_linhas = 4;
-    static float tempoUltimoAumento = 0; // Armazena o tempo do último aumento
+    static float tempoUltimoAumento = 0;
     const float velocidadeMaxima = 5.0f;
 
-    // Aumenta a velocidade das naves a cada 45 segundos
     if (GetTime() - tempoUltimoAumento >= 45) {
-        float fatorAumento = 1.1; // Fator de aumento da velocidade
+        float fatorAumento = 1.1;
 
-        // Aplica o aumento de velocidade para todas as naves antes do movimento
         for (int i = 0; i < num_linhas * naves_por_linha; i++) {
             j->naves[i].velocidade *= fatorAumento;
 
@@ -453,31 +474,27 @@ void AtualizaNavePos(Jogo *j) {
             }
         }
 
-        tempoUltimoAumento = GetTime(); // Atualiza o tempo do último aumento
+        tempoUltimoAumento = GetTime(); 
     }
 
-    // Atualiza a posição das naves
     for (int linha = 0; linha < num_linhas; linha++) {
         for (int coluna = 0; coluna < naves_por_linha; coluna++) {
-            int i = linha * naves_por_linha + coluna; // Índice único para cada nave
+            int i = linha * naves_por_linha + coluna;
 
             if (j->naves[i].pos.x + j->naves[i].pos.width >= j->larguraJanela - BORDAS && j->naves[i].direcao == 1) {
-                // Colisão com a borda direita: muda a direção para a esquerda
                 for (int k = 0; k < num_linhas * naves_por_linha; k++) {
                     j->naves[k].direcao = 0;
                 }
             } else if (j->naves[i].pos.x <= BORDAS && j->naves[i].direcao == 0) {
-                // Colisão com a borda esquerda: muda a direção para a direita
                 for (int k = 0; k < num_linhas * naves_por_linha; k++) {
                     j->naves[k].direcao = 1;
                 }
             }
 
-            // Move a nave com base na direção
             if (j->naves[i].direcao == 1) {
-                j->naves[i].pos.x += j->naves[i].velocidade;  // Move para a direita
+                j->naves[i].pos.x += j->naves[i].velocidade;
             } else {
-                j->naves[i].pos.x -= j->naves[i].velocidade;  // Move para a esquerda
+                j->naves[i].pos.x -= j->naves[i].velocidade;
             }
         }
     }
@@ -536,13 +553,11 @@ void DesenhaNaves(Jogo *j) {
 
     for (int linha = 0; linha < num_linhas; linha++) {
         for (int coluna = 0; coluna < naves_por_linha; coluna++) {
-            int i = linha * naves_por_linha + coluna;  // Índice único para cada nave
+            int i = linha * naves_por_linha + coluna;
             
             if (j->naves[i].vida > 0) {  
                 Rectangle frameRecNave = {frame.x * tamanhoFrame.x, frame.y * tamanhoFrame.y,
                                           tamanhoFrame.x, tamanhoFrame.y};
-
-                // Posição ajustada para formar as fileiras de naves
                 DrawTexturePro(j->assets.naveVerde, frameRecNave, 
                     (Rectangle){j->naves[i].pos.x, j->naves[i].pos.y, 32, 32},
                     (Vector2){0, 0}, 0.0f, WHITE);
@@ -612,7 +627,7 @@ void DesenhaBalas(Jogo *j) {
 
     for (int linha = 0; linha < num_linhas; linha++) {
         for (int coluna = 0; coluna < naves_por_linha; coluna++) {
-            int i = linha * naves_por_linha + coluna;  // Índice único para cada nave
+            int i = linha * naves_por_linha + coluna;
 
             if (j->naves[i].bala.ativa) {
                 DrawRectangleRec(j->naves[i].bala.pos, YELLOW);  
@@ -635,19 +650,17 @@ void ColisaoBordas(Jogo *j) {
 
     for (int linha = 0; linha < num_linhas; linha++) {
         for (int coluna = 0; coluna < naves_por_linha; coluna++) {
-            int i = linha * naves_por_linha + coluna;  // Índice único para cada nave
+            int i = linha * naves_por_linha + coluna;
 
-            // Verifica colisão com a borda direita
             if (CheckCollisionRecs(j->naves[i].pos, j->bordas[2].pos)) {
                 for (int k = 0; k < naves_por_linha * num_linhas; k++) {  
-                    j->naves[k].direcao = 1;  // Muda a direção para a direita
+                    j->naves[k].direcao = 1;
                 }
             }
 
-            // Verifica colisão com a borda esquerda
             else if (CheckCollisionRecs(j->naves[i].pos, j->bordas[3].pos)) {
                 for (int k = 0; k < naves_por_linha * num_linhas; k++) {  
-                    j->naves[k].direcao = 0;  // Muda a direção para a esquerda
+                    j->naves[k].direcao = 0;
                 }
             }
         }
@@ -658,25 +671,22 @@ int ColisaoBalasHeroi(Jogo *j) {
     int naves_por_linha = 10;
     int num_linhas = 4;
 
-    // Verifica colisão da bala do herói com as naves
     for (int linha = 0; linha < num_linhas; linha++) {
         for (int coluna = 0; coluna < naves_por_linha; coluna++) {
-            int i = linha * naves_por_linha + coluna;  // Índice único para cada nave
+            int i = linha * naves_por_linha + coluna;
             if (j->naves[i].vida > 0 && CheckCollisionRecs(j->heroi.bala.pos, j->naves[i].pos)) {
-                j->naves[i].vida = 0;  // Destroi a nave
-                j->heroi.bala.ativa = 0;  // Desativa a bala do herói
-                return 1;  // Colisão detectada
+                j->naves[i].vida = 0;
+                j->heroi.bala.ativa = 0;
+                return 1;
             }
         }
     }
 
-    // Verifica colisão da bala do herói com a borda superior
     if (CheckCollisionRecs(j->heroi.bala.pos, j->bordas[0].pos)) {
-        j->heroi.bala.ativa = 0;  // Desativa a bala
-        return 1;  // Colisão detectada
+        j->heroi.bala.ativa = 0;
+        return 1;
     }
 
-    // Verifica colisão da bala com as barreiras
     for (int i = 0; i < NUM_BARREIRAS; i++) {
         for (int y = 0; y < B_ALTURA; y++) {
             for (int x = 0; x < B_LARGURA; x++) {
@@ -688,35 +698,15 @@ int ColisaoBalasHeroi(Jogo *j) {
                     };
 
                     if (CheckCollisionRecs(bloco, j->heroi.bala.pos)) {
-                        j->heroi.bala.ativa = 0;  // Desativa a bala
-                        return 1;  // Colisão detectada
+                        j->heroi.bala.ativa = 0;
+                        return 1;
                     }
                 }
             }
         }
     }
 
-    return 0;  // Nenhuma colisão detectada
-}
-
-int ColisaoBalasNave(Jogo *j, int indiceNave) {
-
-    // Verifica colisão da bala com o herói
-    if (CheckCollisionRecs(j->naves[indiceNave].bala.pos, j->heroi.pos)) {
-        j->heroi.vida--;  // Se acertar o herói, ele perde vida
-        j->naves[indiceNave].bala.ativa =0; // Desativa a bala inimiga
-        if(j->heroi.vida <= 0){
-            j->heroi.vida = 0;
-        }
-        return 1;  // Retorna 1 para indicar colisão
-    }
-
-    // Verifica colisão da bala com a borda inferior
-    if (CheckCollisionRecs(j->naves[indiceNave].bala.pos, j->bordas[1].pos)) {
-        return 1;  // Retorna 1 para indicar que a bala atingiu a borda
-    }
-
-    return 0;  // Retorna 0 se não houver colisão
+    return 0;
 }
 
 
@@ -724,22 +714,13 @@ int ColisaoBalasNave(Jogo *j, int indiceNave) {
 void AtiraBalas(Jogo *j) {
     int naves_por_linha = 10;
     int num_linhas = 4;
-    static float tempoUltimoAumento = 0; // Armazena o tempo do último aumento
-
-    // Aumenta a velocidade das balas a cada 45 segundos
-    if (GetTime() - tempoUltimoAumento >= 45) {
-        for (int i = 0; i < num_linhas * naves_por_linha; i++) {
-            j->naves[i].bala.velocidade *= 1.15; // Aumenta a velocidade da bala em 15%
-        }
-        tempoUltimoAumento = GetTime(); // Atualiza o tempo do último aumento
-    }
 
     for (int linha = 0; linha < num_linhas; linha++) {
         for (int coluna = 0; coluna < naves_por_linha; coluna++) {
             int i = linha * naves_por_linha + coluna;  // Índice único para cada nave
 
             if (!j->naves[i].bala.ativa && GetTime() - j->naves[i].bala.tempo > j->naves[i].bala.proximoTiro) {
-                if (GetRandomValue(1, 500) == CHANCE_DE_TIRO) { 
+                if (GetRandomValue(1, 200) == CHANCE_DE_TIRO) { 
                     j->naves[i].bala.pos = (Rectangle){
                         j->naves[i].pos.x + j->naves[i].pos.width / 2 - LARGURA_BALA / 2, 
                         j->naves[i].pos.y, 
@@ -762,6 +743,20 @@ void AtiraBalas(Jogo *j) {
             }
         }
     }
+}
+
+int ColisaoBalasNave(Jogo *j, int indiceNave) {
+
+    if (CheckCollisionRecs(j->naves[indiceNave].bala.pos, j->heroi.pos)) {
+        j->heroi.vida = 0;
+        return 1;
+    }
+
+    if (CheckCollisionRecs(j->naves[indiceNave].bala.pos, j->bordas[1].pos)) {
+        return 1;
+    }
+
+    return 0;
 }
 
 void AtirarBalasHeroi(Jogo *j) {
@@ -797,7 +792,7 @@ void CarregaImagens(Jogo *j){
 void CarregarPlacar(Placar placar[5]){
     FILE *arquivo = fopen("../placar.txt", "r");
     if (arquivo == NULL) {
-        //Caso o arquivo não exista, placar com valores padrão
+
         for (int i = 0; i < 5; i++) {
             strcpy(placar[i].nome, "---");
             placar[i].pontuacao = 0;
@@ -830,13 +825,12 @@ void SalvarPlacar(Placar placar[5]) {
 }
 
 void AtualizarPlacar(Placar placar[5], const char *nome, int pontuacao) {
-    //compara a pontuacao do jogador a menor pontuacao já armazenada
+
     if (pontuacao > placar[4].pontuacao) {
-        // Substitui o último lugar no placar
+
         strcpy(placar[4].nome, nome);
         placar[4].pontuacao = pontuacao;
 
-        // Ordena o placar em ordem decrescente
         for (int i = 4; i > 0; i--) {
             if (placar[i].pontuacao > placar[i - 1].pontuacao) {
                 Placar temp = placar[i];
@@ -854,10 +848,8 @@ void ExibirTelaAcabou(Jogo *j, Placar placar[5]) {
         BeginDrawing();
         ClearBackground(BLACK);
 
-        //mensagem "Acabou!"
         DrawText("Acabou!", (LARGURA_JANELA - MeasureText("Acabou!", 40)) / 2, 50, 40, WHITE);
 
-        //Placar
         DrawText("Placar:", 50, 150, 30, WHITE);
         for(int i = 0; i < 5; i++){
             char linha[50];
@@ -868,7 +860,6 @@ void ExibirTelaAcabou(Jogo *j, Placar placar[5]) {
 
         EndDrawing();
 
-        // Sai do loop ao pressionar ENTER
         if (IsKeyPressed(KEY_ENTER)) {
             break;
         }
@@ -878,32 +869,28 @@ void ExibirTelaAcabou(Jogo *j, Placar placar[5]) {
 int calcularPontuacao(Jogo *j) {
 
     int pontuacao = 0;
-    
-    //10 pts por nave destruida
+
     for(int i = 0; i < 40; i++){
         if(j->naves[i].vida == 0){
             pontuacao += 10;
         }
     }
-    //1 ponto por segundo restante
+
     pontuacao += (int)j->tempoRestante;
     return pontuacao;
 }
-
-
 
 int TodasAsNavesMorreram(Jogo *j) {
     int naves_por_linha = 10;
     int num_linhas = 4;
 
-    // Percorre todas as naves e verifica se ainda há alguma com vida
     for (int linha = 0; linha < num_linhas; linha++) {
         for (int coluna = 0; coluna < naves_por_linha; coluna++) {
-            int i = linha * naves_por_linha + coluna;  // Índice único para cada nave
+            int i = linha * naves_por_linha + coluna;
             if (j->naves[i].vida > 0) {
-                return 0;  // Se houver uma nave com vida, retorna 0 (não todas as naves morreram)
+                return 0; 
             }
         }
     }
-    return 1;  // Se todas as naves tiverem morrido, retorna 1
+    return 1; 
 }
