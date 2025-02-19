@@ -25,6 +25,9 @@
 #define TAMANHO_BLOCO 10
 #define NUM_BARREIRAS 4
 
+
+Texture2D rankTextures[5];
+
 typedef struct {
     Rectangle pos;
     int blocos[B_ALTURA][B_LARGURA];
@@ -139,6 +142,7 @@ int main() {
     jogo.larguraJanela = LARGURA_JANELA;
     const char *win = "Você ganhou";
     const char *lose = "Você perdeu";
+
 
     InitWindow(jogo.larguraJanela, jogo.alturaJanela, "Space Invaders");
     SetTargetFPS(60);
@@ -710,42 +714,6 @@ int ColisaoBalasHeroi(Jogo *j) {
     return 0;
 }
 
-
-
-void AtiraBalas(Jogo *j) {
-    int naves_por_linha = 10;
-    int num_linhas = 4;
-
-    for (int linha = 0; linha < num_linhas; linha++) {
-        for (int coluna = 0; coluna < naves_por_linha; coluna++) {
-            int i = linha * naves_por_linha + coluna;  // Índice único para cada nave
-
-            if (!j->naves[i].bala.ativa && GetTime() - j->naves[i].bala.tempo > j->naves[i].bala.proximoTiro) {
-                if (GetRandomValue(1, 200) == CHANCE_DE_TIRO) { 
-                    j->naves[i].bala.pos = (Rectangle){
-                        j->naves[i].pos.x + j->naves[i].pos.width / 2 - LARGURA_BALA / 2, 
-                        j->naves[i].pos.y, 
-                        LARGURA_BALA, ALTURA_BALA
-                    };
-                    j->naves[i].bala.ativa = 1;
-                    j->naves[i].bala.tempo = GetTime();
-                    j->naves[i].bala.proximoTiro = GetRandomValue(TEMPO_MIN_TIRO, TEMPO_MAX_TIRO); 
-                    PlaySound(j->naves[i].bala.tiro);
-                }
-            }
-            
-            // Movimenta a bala
-            if (j->naves[i].bala.ativa) {
-                j->naves[i].bala.pos.y += j->naves[i].bala.velocidade;
-                if (ColisaoBalasNave(j, i)) { 
-                    j->naves[i].bala.ativa = 0;
-                }
-                DesenhaBalas(j);
-            }
-        }
-    }
-}
-
 int ColisaoBalasNave(Jogo *j, int indiceNave) {
 
     if (CheckCollisionRecs(j->naves[indiceNave].bala.pos, j->heroi.pos)) {
@@ -758,6 +726,41 @@ int ColisaoBalasNave(Jogo *j, int indiceNave) {
     }
 
     return 0;
+}
+
+void AtiraBalas(Jogo *j) {
+    int naves_por_linha = 10;
+    int num_linhas = 4;
+
+    for (int linha = 0; linha < num_linhas; linha++) {
+        for (int coluna = 0; coluna < naves_por_linha; coluna++) {
+            int i = linha * naves_por_linha + coluna;  // Índice único para cada nave
+
+            if(j->naves[i].vida > 0){
+                if (!j->naves[i].bala.ativa && GetTime() - j->naves[i].bala.tempo > j->naves[i].bala.proximoTiro) {
+                    if (GetRandomValue(1, 200) == CHANCE_DE_TIRO) { 
+                        j->naves[i].bala.pos = (Rectangle){
+                            j->naves[i].pos.x + j->naves[i].pos.width / 2 - LARGURA_BALA / 2, 
+                            j->naves[i].pos.y, 
+                            LARGURA_BALA, ALTURA_BALA
+                        };
+                        j->naves[i].bala.ativa = 1;
+                        j->naves[i].bala.tempo = GetTime();
+                        j->naves[i].bala.proximoTiro = GetRandomValue(TEMPO_MIN_TIRO, TEMPO_MAX_TIRO); 
+                        PlaySound(j->naves[i].bala.tiro);
+                    }
+                }
+            }
+            if (j->naves[i].bala.ativa) {
+                    j->naves[i].bala.pos.y += j->naves[i].bala.velocidade;
+                    if (ColisaoBalasNave(j, i)) { 
+                        j->naves[i].bala.ativa = 0;
+                    }
+                    DesenhaBalas(j);
+                }
+
+        }
+    }
 }
 
 void AtirarBalasHeroi(Jogo *j) {
@@ -788,6 +791,26 @@ void AtirarBalasHeroi(Jogo *j) {
 void CarregaImagens(Jogo *j){
     j->assets.naveVerde = LoadTexture("../assets/GreenAnimation.png");
     j->assets.naveheroi = LoadTexture("../assets/heroi.png");
+
+    int novaLargura = 50;
+    int novaAltura = 50;
+
+    Image rankImages[5];
+
+    rankImages[0] = LoadImage("../assets/rank1.png");
+    rankImages[1] = LoadImage("../assets/rank2.png");
+    rankImages[2] = LoadImage("../assets/rank3.png");
+    rankImages[3] = LoadImage("../assets/rank4.png");
+    rankImages[4] = LoadImage("../assets/rank5.png");
+
+    for (int i = 0; i < 5; i++) {
+        ImageResize(&rankImages[i], novaLargura, novaAltura);
+    }
+
+    for (int i = 0; i < 5; i++) {
+        rankTextures[i] = LoadTextureFromImage(rankImages[i]);
+        UnloadImage(rankImages[i]);
+    }
 }
 
 void CarregarPlacar(Placar placar[5]){
@@ -849,25 +872,31 @@ void AtualizarPlacar(Placar placar[5], const char *nome, int pontuacao) {
 }
 
 void ExibirTelaAcabou(Jogo *j, Placar placar[5]) {
-    while(!WindowShouldClose()){
+    while (!WindowShouldClose()) {
         BeginDrawing();
         ClearBackground(BLACK);
 
         DrawText("Acabou!", (LARGURA_JANELA - MeasureText("Acabou!", 40)) / 2, 50, 40, WHITE);
 
         DrawText("Placar:", 50, 150, 30, WHITE);
-        for(int i = 0; i < 5; i++){
+
+        for (int i = 0; i < 5; i++) {
+
+            int alturaImagem = rankTextures[i].height;
             char linha[50];
-            if(strlen(placar[i].nome) == 0){
+            if (strlen(placar[i].nome) == 0) {
                 snprintf(linha, sizeof(linha), "%s: %d", placar[i].nome_default, placar[i].pontuacao);
-            }
-            else{
+            } else {
                 snprintf(linha, sizeof(linha), "%s: %d", placar[i].nome, placar[i].pontuacao);
             }
-            DrawText(linha, 50, 200 + i * 30, 20, WHITE);
+            Vector2 tamanhoTexto = MeasureTextEx(GetFontDefault(), linha, 20, 1);
+            int posY = 200 + i * 50;
+            int offsetY = (alturaImagem - tamanhoTexto.y) / 2;
+            DrawTexture(rankTextures[i], 50, posY, WHITE);
+            DrawText(linha, 50 + rankTextures[i].width + 10, posY + offsetY, 20, WHITE);
         }
-        DrawText("Pressione ENTER para sair", (LARGURA_JANELA - MeasureText("Pressione ENTER para sair", 20)) / 2, ALTURA_JANELA - 50, 20, WHITE);
 
+        DrawText("Pressione ENTER para sair", (LARGURA_JANELA - MeasureText("Pressione ENTER para sair", 20)) / 2, ALTURA_JANELA - 50, 20, WHITE);
         EndDrawing();
 
         if (IsKeyPressed(KEY_ENTER)) {
