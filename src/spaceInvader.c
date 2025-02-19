@@ -85,6 +85,7 @@ typedef struct Jogo {
 
 typedef struct Placar{
     char nome[MAX_NOME];
+    char nome_default[MAX_NOME];
     int pontuacao;
 } Placar;
 
@@ -748,7 +749,7 @@ void AtiraBalas(Jogo *j) {
 int ColisaoBalasNave(Jogo *j, int indiceNave) {
 
     if (CheckCollisionRecs(j->naves[indiceNave].bala.pos, j->heroi.pos)) {
-        j->heroi.vida = 0;
+        j->heroi.vida = j->heroi.vida-1;
         return 1;
     }
 
@@ -815,11 +816,15 @@ void DescarregaImagens(Jogo *j){
 void SalvarPlacar(Placar placar[5]) {
     FILE *arquivo = fopen("../placar.txt", "w");
     if (arquivo == NULL) {
-        printf("Erro ao salvar o placar!\n");
         return;
     }
     for (int i = 0; i < 5; i++) {
-        fprintf(arquivo, "%s %d\n", placar[i].nome, placar[i].pontuacao);
+        if(strlen(placar[i].nome) == 0){
+            strcpy(placar[i].nome_default, "Player");
+            fprintf(arquivo, "%s %d\n", placar[i].nome_default, placar[i].pontuacao);
+        }else{
+            fprintf(arquivo, "%s %d\n", placar[i].nome, placar[i].pontuacao);
+        }
     }
     fclose(arquivo);
 }
@@ -853,7 +858,12 @@ void ExibirTelaAcabou(Jogo *j, Placar placar[5]) {
         DrawText("Placar:", 50, 150, 30, WHITE);
         for(int i = 0; i < 5; i++){
             char linha[50];
-            snprintf(linha, sizeof(linha), "%s: %d", placar[i].nome, placar[i].pontuacao);
+            if(strlen(placar[i].nome) == 0){
+                snprintf(linha, sizeof(linha), "%s: %d", placar[i].nome_default, placar[i].pontuacao);
+            }
+            else{
+                snprintf(linha, sizeof(linha), "%s: %d", placar[i].nome, placar[i].pontuacao);
+            }
             DrawText(linha, 50, 200 + i * 30, 20, WHITE);
         }
         DrawText("Pressione ENTER para sair", (LARGURA_JANELA - MeasureText("Pressione ENTER para sair", 20)) / 2, ALTURA_JANELA - 50, 20, WHITE);
