@@ -466,41 +466,49 @@ void AtualizaNavePos(Jogo *j) {
     int naves_por_linha = 10;
     int num_linhas = 4;
     static float tempoUltimoAumento = 0;
-    const float velocidadeMaxima = 5.0f;
+    const float velocidadeMaxima = 8.0f;
 
-    if (GetTime() - tempoUltimoAumento >= 45) {
+    if (GetTime() - tempoUltimoAumento >= 20) {
         float fatorAumento = 1.1;
 
         for (int i = 0; i < num_linhas * naves_por_linha; i++) {
             j->naves[i].velocidade *= fatorAumento;
 
-            if(j->naves[i].velocidade > velocidadeMaxima){
+            if (j->naves[i].velocidade > velocidadeMaxima) {
                 j->naves[i].velocidade = velocidadeMaxima;
             }
         }
 
-        tempoUltimoAumento = GetTime(); 
+        tempoUltimoAumento = GetTime();
     }
 
     for (int linha = 0; linha < num_linhas; linha++) {
         for (int coluna = 0; coluna < naves_por_linha; coluna++) {
             int i = linha * naves_por_linha + coluna;
 
+            // Verifica se a nave atingiu a borda direita
             if (j->naves[i].pos.x + j->naves[i].pos.width >= j->larguraJanela - BORDAS && j->naves[i].direcao == 1) {
                 for (int k = 0; k < num_linhas * naves_por_linha; k++) {
-                    j->naves[k].direcao = 0;
+                    j->naves[k].direcao = 0;  // Muda a direção para esquerda
                 }
-            } else if (j->naves[i].pos.x <= BORDAS && j->naves[i].direcao == 0) {
+                break;  // Sai do loop após mudar a direção
+            }
+            // Verifica se a nave atingiu a borda esquerda
+            else if (j->naves[i].pos.x <= BORDAS && j->naves[i].direcao == 0) {
                 for (int k = 0; k < num_linhas * naves_por_linha; k++) {
-                    j->naves[k].direcao = 1;
+                    j->naves[k].direcao = 1;  // Muda a direção para direita
                 }
+                break;  // Sai do loop após mudar a direção
             }
+        }
+    }
 
-            if (j->naves[i].direcao == 1) {
-                j->naves[i].pos.x += j->naves[i].velocidade;
-            } else {
-                j->naves[i].pos.x -= j->naves[i].velocidade;
-            }
+    // Atualiza a posição horizontal das naves
+    for (int i = 0; i < num_linhas * naves_por_linha; i++) {
+        if (j->naves[i].direcao == 1) {
+            j->naves[i].pos.x += j->naves[i].velocidade;  // Move para a direita
+        } else {
+            j->naves[i].pos.x -= j->naves[i].velocidade;  // Move para a esquerda
         }
     }
 }
@@ -717,7 +725,7 @@ int ColisaoBalasHeroi(Jogo *j) {
 int ColisaoBalasNave(Jogo *j, int indiceNave) {
 
     if (CheckCollisionRecs(j->naves[indiceNave].bala.pos, j->heroi.pos)) {
-        j->heroi.vida = j->heroi.vida-1;
+        j->heroi.vida = j->heroi.vida;
         return 1;
     }
 
