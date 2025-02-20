@@ -16,7 +16,7 @@
 #define TEMPO_MIN_TIRO 2
 #define TEMPO_MAX_TIRO 5
 #define MAX_NOME 10
-#define TEMPO_LIMITE 180
+#define TEMPO_LIMITE 90
 #define TECLA_HACK KEY_F2
 #define VELOCIDADE_MAX_BALA 100
 
@@ -186,8 +186,8 @@ int main() {
                             BeginDrawing();
                             ClearBackground(BLACK);
                             Vector2 tamanhoTexto = MeasureTextEx(GetFontDefault(), "Tempo esgotado! Você perdeu.", 20, 1);
-                            DrawText("Tempo esgotado! Você perdeu.", (LARGURA_JANELA - tamanhoTexto.x) / 2, (ALTURA_JANELA - tamanhoTexto.y) / 2, 20, RED);
-                            DrawText("Pressione ENTER para voltar ao menu", 200, 300, 20, WHITE);
+                            DrawText("Tempo esgotado! Você perdeu.", (LARGURA_JANELA - tamanhoTexto.x) / 2, (ALTURA_JANELA-50 - tamanhoTexto.y) / 2, 20, RED);
+                            DrawText("Pressione ENTER para voltar ao menu", 210, 320, 20, WHITE);
                             EndDrawing();
 
                             if (IsKeyPressed(KEY_ENTER)) {
@@ -466,10 +466,10 @@ void AtualizaNavePos(Jogo *j) {
     int naves_por_linha = 10;
     int num_linhas = 4;
     static float tempoUltimoAumento = 0;
-    const float velocidadeMaxima = 8.0f;
+    const float velocidadeMaxima = 10.0f;
 
-    if (GetTime() - tempoUltimoAumento >= 20) {
-        float fatorAumento = 1.1;
+    if (GetTime() - tempoUltimoAumento >= 15) {
+        float fatorAumento = 1.25;
 
         for (int i = 0; i < num_linhas * naves_por_linha; i++) {
             j->naves[i].velocidade *= fatorAumento;
@@ -486,29 +486,27 @@ void AtualizaNavePos(Jogo *j) {
         for (int coluna = 0; coluna < naves_por_linha; coluna++) {
             int i = linha * naves_por_linha + coluna;
 
-            // Verifica se a nave atingiu a borda direita
             if (j->naves[i].pos.x + j->naves[i].pos.width >= j->larguraJanela - BORDAS && j->naves[i].direcao == 1) {
                 for (int k = 0; k < num_linhas * naves_por_linha; k++) {
-                    j->naves[k].direcao = 0;  // Muda a direção para esquerda
+                    j->naves[k].direcao = 0; 
                 }
-                break;  // Sai do loop após mudar a direção
+                break; 
             }
-            // Verifica se a nave atingiu a borda esquerda
+
             else if (j->naves[i].pos.x <= BORDAS && j->naves[i].direcao == 0) {
                 for (int k = 0; k < num_linhas * naves_por_linha; k++) {
-                    j->naves[k].direcao = 1;  // Muda a direção para direita
+                    j->naves[k].direcao = 1;
                 }
-                break;  // Sai do loop após mudar a direção
+                break;
             }
         }
     }
 
-    // Atualiza a posição horizontal das naves
     for (int i = 0; i < num_linhas * naves_por_linha; i++) {
         if (j->naves[i].direcao == 1) {
-            j->naves[i].pos.x += j->naves[i].velocidade;  // Move para a direita
+            j->naves[i].pos.x += j->naves[i].velocidade;
         } else {
-            j->naves[i].pos.x -= j->naves[i].velocidade;  // Move para a esquerda
+            j->naves[i].pos.x -= j->naves[i].velocidade;
         }
     }
 }
@@ -725,7 +723,7 @@ int ColisaoBalasHeroi(Jogo *j) {
 int ColisaoBalasNave(Jogo *j, int indiceNave) {
 
     if (CheckCollisionRecs(j->naves[indiceNave].bala.pos, j->heroi.pos)) {
-        j->heroi.vida = j->heroi.vida;
+        j->heroi.vida = j->heroi.vida-1;
         return 1;
     }
 
@@ -742,11 +740,11 @@ void AtiraBalas(Jogo *j) {
 
     for (int linha = 0; linha < num_linhas; linha++) {
         for (int coluna = 0; coluna < naves_por_linha; coluna++) {
-            int i = linha * naves_por_linha + coluna;  // Índice único para cada nave
+            int i = linha * naves_por_linha + coluna;
 
             if(j->naves[i].vida > 0){
                 if (!j->naves[i].bala.ativa && GetTime() - j->naves[i].bala.tempo > j->naves[i].bala.proximoTiro) {
-                    if (GetRandomValue(1, 200) == CHANCE_DE_TIRO) { 
+                    if (GetRandomValue(1, 170-j->tempoRestante) == CHANCE_DE_TIRO) { 
                         j->naves[i].bala.pos = (Rectangle){
                             j->naves[i].pos.x + j->naves[i].pos.width / 2 - LARGURA_BALA / 2, 
                             j->naves[i].pos.y, 
